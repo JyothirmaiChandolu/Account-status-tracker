@@ -1,0 +1,52 @@
+State,Tax Authority,Website,Franchise/Privilege Tax?
+Alabama,Alabama Department of Revenue,https://revenue.alabama.gov,Yes (Business Privilege Tax)
+Alaska,Alaska Dept. of Revenue - Tax Division,https://tax.alaska.gov,No
+Arizona,Arizona Department of Revenue,https://azdor.gov,No
+Arkansas,Arkansas Dept. of Finance & Administration,https://www.dfa.arkansas.gov,Yes (Franchise Tax - via Sec. of State)
+California,Franchise Tax Board Self Serve Entity Status Letter,https://webapp.ftb.ca.gov/eletter/,Yes (Franchise/min. tax)
+Colorado,Colorado Department of Revenue,https://tax.colorado.gov,No
+Connecticut,Dept. of Revenue Services,https://portal.ct.gov/DRS,Yes (Business Entity / capital base)
+Delaware,Division of Corporations / Div. of Revenue,https://corp.delaware.gov,Yes (Franchise Tax)
+Florida,Florida Department of Revenue,https://floridarevenue.com,No (corp. income only)
+Georgia,Georgia Department of Revenue,https://dor.georgia.gov,Yes (Net Worth Tax)
+Hawaii,Hawaii Department of Taxation,https://tax.hawaii.gov,No (GET instead)
+Idaho,Idaho State Tax Commission,https://tax.idaho.gov,No
+Illinois,Illinois Dept. of Revenue / Secretary of State,https://tax.illinois.gov,Yes (Franchise Tax - via Sec. of State)
+Indiana,Indiana Department of Revenue,https://www.in.gov/dor,No
+Iowa,Iowa Department of Revenue,https://revenue.iowa.gov,Yes (Franchise tax on financial institutions)
+Kansas,Kansas Department of Revenue,https://www.ksrevenue.gov,No (repealed)
+Kentucky,Kentucky Department of Revenue,https://revenue.ky.gov,Yes (LLET - Limited Liability Entity Tax)
+Louisiana,Louisiana Department of Revenue,https://revenue.louisiana.gov,Yes (Corporation Franchise Tax)
+Maine,Maine Revenue Services,https://www.maine.gov/revenue,Yes (Franchise tax on financial institutions)
+Maryland,Comptroller of Maryland,https://www.marylandcomptroller.gov,No
+Massachusetts,Massachusetts Dept. of Revenue,https://www.mass.gov/orgs/massachusetts-department-of-revenue,Yes (Excise on net worth)
+Michigan,Michigan Department of Treasury,https://www.michigan.gov/taxes,No
+Minnesota,Minnesota Department of Revenue,https://www.revenue.state.mn.us,Yes (Minimum fee)
+Mississippi,Mississippi Department of Revenue,https://www.dor.ms.gov,Yes (Franchise Tax - phasing out)
+Missouri,Missouri Department of Revenue,https://dor.mo.gov,No (repealed)
+Montana,Montana Department of Revenue,https://revenue.mt.gov,No
+Nebraska,Nebraska Department of Revenue,https://revenue.nebraska.gov,No
+Nevada,Nevada Department of Taxation,https://tax.nv.gov,Yes (Commerce Tax - gross receipts)
+New Hampshire,NH Dept. of Revenue Administration,https://www.revenue.nh.gov,No (BPT/BET instead)
+New Jersey,NJ Division of Taxation,https://www.nj.gov/treasury/taxation,No
+New Mexico,NM Taxation & Revenue Department,https://www.tax.newmexico.gov,Yes ($50 franchise tax)
+New York,NY Dept. of Taxation & Finance,https://www.tax.ny.gov,Yes (Franchise Tax on corporations)
+North Carolina,North Carolina Dept. of Revenue,https://www.ncdor.gov,Yes (Franchise Tax)
+North Dakota,ND Office of State Tax Commissioner,https://www.tax.nd.gov,No
+Ohio,Ohio Department of Taxation,https://tax.ohio.gov,Yes (Commercial Activity Tax - gross receipts)
+Oklahoma,Oklahoma Tax Commission,https://oklahoma.gov/tax.html,Yes (Franchise Tax)
+Oregon,Oregon Department of Revenue,https://www.oregon.gov/dor,Yes (Corp. excise/min. tax)
+Pennsylvania,Pennsylvania Dept. of Revenue,https://www.pa.gov/en/agencies/revenue.html,No (capital stock tax repealed)
+Rhode Island,RI Division of Taxation,https://tax.ri.gov,Yes (Minimum corp. tax)
+South Carolina,South Carolina Dept. of Revenue,https://dor.sc.gov,Yes (License Fee)
+South Dakota,South Dakota Dept. of Revenue,https://dor.sd.gov,No
+Tennessee,Tennessee Department of Revenue,https://www.tn.gov/revenue,Yes (Franchise & Excise Tax)
+Texas,Texas Comptroller of Public Accounts,https://comptroller.texas.gov,Yes (Franchise / Margin Tax)
+Utah,Utah State Tax Commission,https://tax.utah.gov,Yes (Corp. franchise tax)
+Vermont,Vermont Department of Taxes,https://tax.vermont.gov,No (min. tax only)
+Virginia,Virginia Department of Taxation,https://www.tax.virginia.gov,No (bank franchise only)
+Washington,Washington Department of Revenue,https://dor.wa.gov,Yes (B&O - gross receipts)
+West Virginia,West Virginia Tax Division,https://tax.wv.gov,No (franchise tax repealed)
+Wisconsin,Wisconsin Department of Revenue,https://www.revenue.wi.gov,Yes (Franchise Tax)
+Wyoming,Wyoming Department of Revenue,https://revenue.wyo.gov,No (license tax via Sec. of State)
+"Washington, D.C.",DC Office of Tax and Revenue,https://otr.cfo.dc.gov,No (franchise-style corp. income tax)
