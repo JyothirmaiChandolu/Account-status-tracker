@@ -35,11 +35,3 @@ services:
     envVars:
       - key: VITE_API_BASE_URL
         value: https://tax-tracker-backend.onrender.com
-
-  - type: cron
-    name: tax-tracker-refresh-all
-    runtime: python
-    plan: free
-    schedule: "0 8 * * *"
-    buildCommand: "echo 'no build needed'"
-    startCommand: "curl -X POST https://tax-tracker-backend.onrender.com/api/companies/refresh-all"
