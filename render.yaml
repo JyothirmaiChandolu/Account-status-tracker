@@ -34,4 +34,4 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://tax-tracker-backend.onrender.com
+        value: https://tax-tracker-backend-v8f1.onrender.com
