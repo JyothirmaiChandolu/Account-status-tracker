@@ -53,6 +53,12 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
             return _handle_multi_match(session, company, e.matches, lambda href, name: detail_fn(href, name))
         except (LookupNotFound, LookupBlocked) as e:
             log.info(f"Deterministic adapter failed ({e}) — falling back to generic engine")
+        except Exception as e:
+            # Covers browser-launch failures (e.g. missing system libraries) and
+            # anything else unexpected — never let the deterministic path crash
+            # the request; fall back to generic engine, which has its own
+            # last-resort manual_review_needed handling.
+            log.info(f"Deterministic adapter crashed ({type(e).__name__}: {e}) — falling back to generic engine")
 
     authority = session.query(TaxAuthority).filter_by(state=company.state).first()
     if authority is None:
