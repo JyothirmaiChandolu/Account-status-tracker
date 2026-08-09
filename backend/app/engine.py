@@ -5,6 +5,7 @@ Handles the case where a name search matches multiple distinct entities
 match as its own company row, grouped under the searched name.
 """
 import logging
+from datetime import datetime, timedelta, timezone
 
 from .models import Company, StatusCheck, StatusEnum, TaxAuthority, StateAdapterRecipe
 from .lookup.registry import get_lookup_fn, get_detail_lookup_fn
@@ -13,6 +14,21 @@ from .lookup.generic import bootstrap_recipe, lookup_with_recipe, lookup_detail_
 from .notifications import maybe_alert_on_status_change
 
 log = logging.getLogger("engine")
+
+# How long to wait before retrying a state whose recipe failed, before trying
+# another full LLM bootstrap. Without this, an hourly refresh-all would pay
+# for a fresh bootstrap attempt every single hour for a state that's simply
+# not automatable (dead server, bot wall) — 24x the cost for no new information.
+BROKEN_RETRY_COOLDOWN = timedelta(hours=24)
+
+
+def _recipe_in_cooldown(recipe: StateAdapterRecipe) -> bool:
+    if recipe.broken_at is None:
+        return False
+    broken_at = recipe.broken_at
+    if broken_at.tzinfo is None:
+        broken_at = broken_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - broken_at < BROKEN_RETRY_COOLDOWN
 
 
 def perform_status_check(session, company: Company) -> list[StatusCheck]:
@@ -74,6 +90,21 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
 
     recipe = session.query(StateAdapterRecipe).filter_by(state=company.state).first()
 
+    if recipe is not None and recipe.is_broken and _recipe_in_cooldown(recipe):
+        log.info(f"Recipe for {company.state} is broken (since {recipe.broken_at}) and still in cooldown "
+                 f"— skipping re-bootstrap, marking manual_review_needed without spending LLM cost")
+        check = StatusCheck(
+            company_id=company.id,
+            status=StatusEnum.manual_review_needed,
+            source_url=authority.website,
+            confidence=0.0,
+            raw_extract=f"Automated lookup for {company.state} failed as of {recipe.broken_at}; "
+                        f"not retrying again until the cooldown expires.",
+        )
+        session.add(check)
+        session.commit()
+        return [check]
+
     try:
         if recipe is None:
             log.info(f"No saved recipe for {company.state} yet — bootstrapping via LLM (this takes longer, one-time cost)")
@@ -87,6 +118,7 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
             fresh = bootstrap_recipe(company.state, authority.website, source_script="engine")
             _copy_recipe_fields(recipe, fresh)
             recipe.is_broken = False
+            recipe.broken_at = None
             recipe.version = (recipe.version or 1) + 1
             session.commit()
             log.info(f"Re-bootstrapped: search_page_url={recipe.search_page_url}")
@@ -141,6 +173,7 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
         session.rollback()
         if recipe is not None and recipe.id is not None:
             recipe.is_broken = True
+            recipe.broken_at = datetime.now(timezone.utc)
             session.commit()
         check = StatusCheck(
             company_id=company.id,

@@ -86,6 +86,7 @@ class StateAdapterRecipe(Base):
     status_value_map = Column(JSON, nullable=False, default=dict)
     version = Column(Integer, nullable=False, default=1)
     is_broken = Column(Boolean, nullable=False, default=False)
+    broken_at = Column(DateTime(timezone=True), nullable=True)
     last_verified_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -21,8 +21,10 @@ from .schemas import (
 from .engine import perform_status_check
 from .lookup.generic import SCREENSHOT_DIR
 from .seed import seed_tax_authorities
+from .migrations import run_migrations
 
 Base.metadata.create_all(bind=engine)
+run_migrations(engine)
 seed_tax_authorities()
 
 app = FastAPI(title="Franchise Tax Account Status Monitoring API")

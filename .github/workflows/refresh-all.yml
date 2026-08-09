@@ -2,7 +2,7 @@ name: Scheduled Refresh All
 
 on:
   schedule:
-    - cron: "0 8 * * *"   # daily, 8am UTC — adjust as needed
+    - cron: "0 * * * *"   # every hour, on the hour
   workflow_dispatch: {}    # lets you trigger a test run manually from the Actions tab
 
 jobs:
