@@ -6,11 +6,16 @@ from .config import OPENAI_API_KEY, OPENAI_MODEL
 from .database import SessionLocal
 from .models import LlmCallLog
 
-# Approx USD per 1M tokens. Update if pricing changes.
+# Approx USD per 1M tokens. Update if pricing changes. Search-preview models
+# also carry a separate per-call web-search fee not reflected here — token
+# cost logged is a lower bound, not the exact bill.
 PRICING = {
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-4o": {"input": 2.50, "output": 10.00},
+    "gpt-4o-mini-search-preview": {"input": 0.15, "output": 0.60},
 }
+
+SEARCH_MODEL = "gpt-4o-mini-search-preview"
 
 _client = None
 
@@ -22,19 +27,7 @@ def get_client():
     return _client
 
 
-def call_structured(prompt: str, schema: dict, purpose: str, source_script: str, model: str = None) -> dict:
-    model = model or OPENAI_MODEL
-    client = get_client()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "result", "schema": schema, "strict": True},
-        },
-    )
-
-    usage = response.usage
+def _log_call(model: str, usage, purpose: str, source_script: str):
     prompt_tokens = usage.prompt_tokens if usage else None
     completion_tokens = usage.completion_tokens if usage else None
     total_tokens = usage.total_tokens if usage else None
@@ -60,4 +53,32 @@ def call_structured(prompt: str, schema: dict, purpose: str, source_script: str,
     finally:
         session.close()
 
+
+def call_structured(prompt: str, schema: dict, purpose: str, source_script: str, model: str = None) -> dict:
+    model = model or OPENAI_MODEL
+    client = get_client()
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {"name": "result", "schema": schema, "strict": True},
+        },
+    )
+    _log_call(model, response.usage, purpose, source_script)
     return json.loads(response.choices[0].message.content)
+
+
+def call_with_web_search(prompt: str, purpose: str, source_script: str) -> str:
+    """Real web search, not just the model's training data — used to research
+    a state's official terminology/authority/URL before ever opening a browser.
+    Returns raw text; any URL in it must still be live-verified before use,
+    since even search-grounded answers can misstate an exact path."""
+    client = get_client()
+    response = client.chat.completions.create(
+        model=SEARCH_MODEL,
+        web_search_options={},
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_call(SEARCH_MODEL, response.usage, purpose, source_script)
+    return response.choices[0].message.content

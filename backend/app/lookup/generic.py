@@ -7,13 +7,13 @@ from urllib.parse import urljoin
 
 from playwright.sync_api import sync_playwright
 
-from ..llm_client import call_structured
+from ..llm_client import call_structured, call_with_web_search
 from ..models import StatusEnum, StateAdapterRecipe
 from .base import LookupResult, LookupNotFound, LookupBlocked, MultipleMatchesFound, settle, page_looks_blocked
 
 log = logging.getLogger("generic_engine")
 
-MAX_HOPS = 3
+MAX_HOPS = 5
 SCREENSHOT_DIR = Path(__file__).resolve().parents[3] / "backend" / "data" / "screenshots"
 
 NO_RESULTS_PATTERNS = [
@@ -73,6 +73,17 @@ CLASSIFY_VALUE_SCHEMA = {
     "additionalProperties": False,
 }
 
+EXTRACT_DISCOVERY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "terminology": {"type": "string"},
+        "candidate_url": {"type": ["string", "null"]},
+        "authority_name": {"type": "string"},
+    },
+    "required": ["terminology", "candidate_url", "authority_name"],
+    "additionalProperties": False,
+}
+
 
 RELEVANT_KEYWORDS = [
     "franchise", "privilege", "tax", "status", "entity", "business", "search",
@@ -126,6 +137,19 @@ def _find_all_matching_links(page, company_name):
         if text and href and needle in text.upper() and href not in seen:
             seen.add(href)
             matches.append({"name": text, "href": href, "element": a})
+
+    if matches:
+        return matches
+
+    # Some result tables (e.g. DataTables-style grids) have no real <a href> at
+    # all — each row is a plain <td> with a JS click-handler bound to the row.
+    # Fall back to matching by cell text and clicking the row itself; href is
+    # None since there's no independently-navigable URL for these.
+    for cell in page.query_selector_all("td"):
+        text = (cell.inner_text() or "").strip()
+        if text and needle in text.upper() and text not in seen:
+            seen.add(text)
+            matches.append({"name": text, "href": None, "element": cell})
     return matches
 
 
@@ -142,33 +166,88 @@ def _selector_from_info(info):
     return None
 
 
+def _discover_starting_url(state: str, source_script: str) -> dict:
+    """No predefined path: research what this check is actually called and where
+    it actually lives in this state, using real web search — not just crawling
+    from whatever URL happens to be in the reference CSV. Every state calls this
+    something different and often puts it on an entirely separate domain from
+    the tax authority's own homepage (e.g. New Jersey's is on njportal.com, not
+    nj.gov). The returned URL is a research lead, not a fact — it still has to
+    be live-verified before use."""
+    answer = call_with_web_search(
+        prompt=(
+            f"In the US state of {state}, what is the official government website where the public can look up "
+            "a business entity's current legal/tax standing — sometimes called 'franchise tax status', 'certificate "
+            "of good standing', 'entity status', 'business entity status report', or similar depending on the state? "
+            "Identify: (1) the correct government authority responsible (could be the Department of Revenue, the "
+            "Secretary of State, or a separate portal), (2) what this specific check is officially called in this "
+            "state, (3) the best URL you can find for it — prefer a general search/lookup tool over a one-off "
+            "certificate request if both exist, and prefer a top-level page over a deep link you're not fully sure "
+            "of. Note whether it requires payment or an account."
+        ),
+        purpose="discover_state_authority",
+        source_script=source_script,
+    )
+    return call_structured(
+        prompt=(
+            "Extract the key facts from this research answer about a US state's business entity status check:\n\n"
+            f"{answer}"
+        ),
+        schema=EXTRACT_DISCOVERY_SCHEMA,
+        purpose="extract_discovery",
+        source_script=source_script,
+    )
+
+
 def bootstrap_recipe(state: str, authority_homepage: str, source_script: str = "generic_bootstrap") -> StateAdapterRecipe:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
             current_url = authority_homepage
+            try:
+                discovery = _discover_starting_url(state, source_script)
+                candidate_url = discovery.get("candidate_url")
+                log.info(f"  [bootstrap] research: '{discovery.get('terminology')}' via "
+                         f"{discovery.get('authority_name')} — candidate URL: {candidate_url}")
+                if candidate_url:
+                    page.goto(candidate_url, timeout=15000)
+                    settle(page)
+                    current_url = candidate_url
+                    log.info(f"  [bootstrap] discovered URL loaded successfully, starting there instead of {authority_homepage}")
+                else:
+                    raise ValueError("no candidate URL returned")
+            except Exception as e:
+                log.info(f"  [bootstrap] discovered URL unusable ({type(e).__name__}: {e}) — falling back to {authority_homepage}")
+                current_url = authority_homepage
+                page.goto(current_url, timeout=30000)
+                settle(page)
+
             visited = {current_url}
-            page.goto(current_url, timeout=30000)
-            settle(page)
 
             found = False
             for hop in range(MAX_HOPS + 1):
                 log.info(f"  [bootstrap] hop {hop}: asking LLM to judge {current_url}")
                 elements = _collect_form_elements(page)
                 links = _collect_links(page)
+                has_text_input = any(
+                    el.get("tag") == "input" and el.get("type") in (None, "text") for el in elements
+                )
                 decision = call_structured(
                     prompt=(
                         "You are navigating a US state tax/revenue authority website looking for the dedicated "
                         "BUSINESS ENTITY / FRANCHISE TAX / PRIVILEGE TAX ACCOUNT STATUS SEARCH tool — a page where "
                         "you search a specific company by name and see whether its tax/franchise account status is "
                         "active, delinquent, forfeited, suspended, etc. Do NOT mistake a generic site-wide keyword "
-                        "search box (e.g. a top-nav 'search this website' icon) for this tool — that is NOT it.\n\n"
+                        "search box (e.g. a top-nav 'search this website' icon) for this tool — that is NOT it. A "
+                        "page that only lists LINKS to different search sub-types (e.g. 'Search by Name', 'Search "
+                        "by ID') but has no actual text input field of its own is NOT the tool yet — you must "
+                        "follow one of those links first to reach the real form.\n\n"
                         f"Current page URL: {current_url}\n"
                         f"Current page form/input elements (JSON): {json.dumps(elements)}\n"
                         f"Links on this page (JSON): {json.dumps(links)}\n\n"
-                        "If the current page's form elements above are clearly the dedicated entity/franchise tax "
-                        "status search tool, respond found_form_page=true. Otherwise pick the single best link to "
+                        "If the current page's form elements above include a real text input for entering a "
+                        "business name, respond found_form_page=true. Otherwise pick the single best link to "
                         "follow next toward that tool, respond found_form_page=false with chosen_link_href set. "
                         "If nothing looks promising, respond found_form_page=false and chosen_link_href=null."
                     ),
@@ -176,11 +255,19 @@ def bootstrap_recipe(state: str, authority_homepage: str, source_script: str = "
                     purpose="find_search_page",
                     source_script=source_script,
                 )
-                if decision.get("found_form_page"):
+                if decision.get("found_form_page") and has_text_input:
                     log.info(f"  [bootstrap] found the search tool at {current_url}")
                     found = True
                     break
+
                 href = decision.get("chosen_link_href")
+                if decision.get("found_form_page") and not has_text_input:
+                    # LLM wrongly declared victory on a page with no real input (e.g. a
+                    # menu of sub-search-type links) — it won't have given us a link to
+                    # follow in that case, so fall back to the first relevant link found.
+                    href = links[0]["href"] if links else None
+                    log.info(f"  [bootstrap] LLM said found_form_page=true but no real text input exists here — "
+                             f"overriding, following first relevant link instead: {href}")
                 if not href:
                     log.info(f"  [bootstrap] no promising link, giving up: {decision.get('reason')}")
                     break
@@ -207,9 +294,12 @@ def bootstrap_recipe(state: str, authority_homepage: str, source_script: str = "
                     "the TEXT FIELD for entering a business/entity name to search, and which is the SUBMIT button. "
                     "Respond with a selector for each, in this priority order: '#id' if an id is present; else "
                     "\"[name='...']\" if a name is present; else, for the submit button ONLY, if it has neither "
-                    "id nor name but has visible text, respond with \"text=EXACT_VISIBLE_TEXT\" (Playwright's text "
-                    "selector syntax — this is the ONLY valid fallback). NEVER invent jQuery-style pseudo-selectors "
-                    "like ':contains(...)' — they are not valid CSS and will fail.\n"
+                    "id nor name but has visible text, respond with 'role=button[name=\"EXACT_TEXT\"]' or "
+                    "'role=button[name=\"EXACT_TEXT\" i]' (Playwright's ARIA role selector — matches only real "
+                    "interactive elements by their exact accessible name, unlike a plain text= selector which can "
+                    "wrongly match a heading or paragraph that happens to contain the same word). NEVER use a bare "
+                    "'text=...' selector for a button, and NEVER invent jQuery-style pseudo-selectors like "
+                    "':contains(...)' — they are not valid CSS and will fail.\n"
                     f"{json.dumps(elements)}"
                 ),
                 schema=IDENTIFY_FORM_SCHEMA,
@@ -257,6 +347,15 @@ def _run_search_and_extract(recipe: StateAdapterRecipe, company_name: str, page,
         page.wait_for_timeout(3000)
     else:
         recipe.has_result_list = True
+        if any(m["href"] is None for m in matches):
+            # No independently-navigable URL per row (JS-click-only result table) —
+            # can't split these into separately-checkable entities the way
+            # MultipleMatchesFound expects. Documented limitation, same family as
+            # Delaware's javascript:__doPostBack() links.
+            raise LookupNotFound(
+                f"{len(matches)} entities matched '{company_name}' but this site's results have no "
+                f"independently-navigable links per row — can't split into separate tracked entities."
+            )
         base_url = page.url
         resolved = [{"name": m["name"], "href": urljoin(base_url, m["href"])} for m in matches]
         raise MultipleMatchesFound(resolved)
