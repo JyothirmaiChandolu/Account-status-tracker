@@ -12,10 +12,11 @@ from .models import LlmCallLog
 PRICING = {
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-4o": {"input": 2.50, "output": 10.00},
-    "gpt-4o-mini-search-preview": {"input": 0.15, "output": 0.60},
+    "gpt-5-search-api": {"input": 0.15, "output": 0.60},  # placeholder, unverified — check actual pricing
 }
 
-SEARCH_MODEL = "gpt-4o-mini-search-preview"
+# gpt-4o-mini-search-preview was shut down 2026-07-23; gpt-5-search-api is its successor.
+SEARCH_MODEL = "gpt-5-search-api"
 
 _client = None
 

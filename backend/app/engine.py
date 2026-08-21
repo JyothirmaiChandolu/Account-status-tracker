@@ -50,8 +50,12 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
     if deterministic_fn is not None:
         log.info(f"Using deterministic adapter for {company.state}")
         try:
-            result = deterministic_fn(company.name, company.entity_number)
+            result = deterministic_fn(company.name, entity_number=company.entity_number, ein=company.ein)
             log.info(f"Result: {result.status.value} (confidence {result.confidence}) — {result.source_url}")
+            if result.discovered_ein and not company.ein:
+                log.info(f"Discovered EIN via web search, saving to company record: {result.discovered_ein}")
+                company.ein = result.discovered_ein
+                session.add(company)
             check = StatusCheck(
                 company_id=company.id,
                 status=result.status,

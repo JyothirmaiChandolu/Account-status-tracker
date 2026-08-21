@@ -6,6 +6,12 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from ..models import StatusEnum
 
 
+DESKTOP_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+)
+
+
 def settle(page, timeout=8000):
     """Wait for the page to go network-idle, capped short — some sites (analytics,
     live-chat widgets, trackers) never fully go idle, so a bare wait_for_load_state
@@ -54,6 +60,10 @@ class LookupResult:
     raw_extract: str
     confidence: float
     screenshot_path: Optional[str] = None
+    # Set when an adapter had to discover an identifier (e.g. Illinois' EIN) via
+    # web search rather than reading it off the Company row. The caller persists
+    # this back onto the company so future checks skip the search.
+    discovered_ein: Optional[str] = None
 
 
 class LookupNotFound(Exception):

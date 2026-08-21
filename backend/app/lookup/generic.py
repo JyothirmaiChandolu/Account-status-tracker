@@ -9,7 +9,10 @@ from playwright.sync_api import sync_playwright
 
 from ..llm_client import call_structured, call_with_web_search
 from ..models import StatusEnum, StateAdapterRecipe
-from .base import LookupResult, LookupNotFound, LookupBlocked, MultipleMatchesFound, settle, page_looks_blocked
+from .base import (
+    LookupResult, LookupNotFound, LookupBlocked, MultipleMatchesFound, settle, page_looks_blocked,
+    DESKTOP_USER_AGENT,
+)
 
 log = logging.getLogger("generic_engine")
 
@@ -202,7 +205,7 @@ def _discover_starting_url(state: str, source_script: str) -> dict:
 def bootstrap_recipe(state: str, authority_homepage: str, source_script: str = "generic_bootstrap") -> StateAdapterRecipe:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page = browser.new_page(user_agent=DESKTOP_USER_AGENT)
         try:
             current_url = authority_homepage
             try:
@@ -458,7 +461,7 @@ def _extract_from_current_page(recipe: StateAdapterRecipe, page, entity_label: s
 def lookup_with_recipe(recipe: StateAdapterRecipe, company_name: str, source_script: str = "generic_replay"):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page = browser.new_page(user_agent=DESKTOP_USER_AGENT)
         try:
             return _run_search_and_extract(recipe, company_name, page, source_script)
         finally:
@@ -470,7 +473,7 @@ def lookup_detail_url(recipe: StateAdapterRecipe, detail_url: str, entity_name: 
     goes straight to its known detail page rather than re-running the ambiguous name search."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page = browser.new_page(user_agent=DESKTOP_USER_AGENT)
         try:
             page.goto(detail_url, timeout=30000)
             settle(page)

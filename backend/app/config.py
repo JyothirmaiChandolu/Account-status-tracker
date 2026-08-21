@@ -17,3 +17,5 @@ CSV_PATH = ROOT_DIR / "state_franchise_tax_authorities.csv"
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 ALERT_TO_EMAIL = os.getenv("ALERT_TO_EMAIL", GMAIL_USER)
+
+SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")

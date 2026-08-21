@@ -71,7 +71,7 @@ def _extract_from_current_page(page, entity_label: str) -> LookupResult:
     )
 
 
-def lookup(company_name: str, entity_number: str = None) -> LookupResult:
+def lookup(company_name: str, entity_number: str = None, ein: str = None) -> LookupResult:
     log.info(f"  [texas] searching '{company_name}' on Comptroller entity search")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
