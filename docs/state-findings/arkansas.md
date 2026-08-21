@@ -21,3 +21,11 @@ standing decision applies: not attempting to solve/click through it.
 
 **Manual check:** https://sos-corp-search.ark.org/corps — a normal human browsing session should not
 trigger the adaptive challenge (it's rate/pattern-based against automation, not a blanket block).
+
+**Retested 2026-08-22 — tried headed mode** (the fix that worked cleanly for Massachusetts' Incapsula
+block — see massachusetts.py). Result here: inconsistent. Of 4 consecutive attempts, 1 returned real
+search results, 1 hit the "confirm you are human" interstitial, and 2 timed out with no response at
+all (a harder failure mode than the interstitial — looks like the adaptive wall escalated further
+against repeated automated hits from the same source during testing). Not something to depend on for
+a scheduled hourly check — no way to distinguish in advance which attempt will get through, and
+retry logic would just be hammering an already-adaptive wall harder. Staying confirmed broken.
