@@ -15,6 +15,15 @@ from .notifications import maybe_alert_on_status_change
 
 log = logging.getLogger("engine")
 
+
+def _is_blank_ein(value) -> bool:
+    """A bad EIN-discovery run can persist the literal string "null" (the model
+    echoing it as text instead of using JSON null) — that's truthy in Python, so
+    without this it would block re-discovery forever instead of self-healing."""
+    if not value:
+        return True
+    return value.strip().lower() in ("null", "none", "n/a", "na")
+
 # How long to wait before retrying a state whose recipe failed, before trying
 # another full LLM bootstrap. Without this, an hourly refresh-all would pay
 # for a fresh bootstrap attempt every single hour for a state that's simply
@@ -52,7 +61,7 @@ def _perform_status_check_impl(session, company: Company) -> list[StatusCheck]:
         try:
             result = deterministic_fn(company.name, entity_number=company.entity_number, ein=company.ein)
             log.info(f"Result: {result.status.value} (confidence {result.confidence}) — {result.source_url}")
-            if result.discovered_ein and not company.ein:
+            if result.discovered_ein and _is_blank_ein(company.ein):
                 log.info(f"Discovered EIN via web search, saving to company record: {result.discovered_ein}")
                 company.ein = result.discovered_ein
                 session.add(company)

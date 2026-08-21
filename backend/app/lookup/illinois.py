@@ -80,7 +80,21 @@ def _discover_ein(company_name: str) -> str:
         purpose="extract_ein",
         source_script=SOURCE_SCRIPT,
     )
-    return extraction.get("ein")
+    return _clean_ein(extraction.get("ein"))
+
+
+def _clean_ein(ein):
+    """Guards against the model echoing the word "null"/"none"/"n/a" as a string
+    instead of using the JSON null type — that string is truthy in Python, so left
+    unchecked it gets treated as a real EIN, saved to the company record, and then
+    silently breaks every check after (digit-strips to an empty ID, which the site
+    accepts but returns nothing useful for)."""
+    if not ein:
+        return None
+    stripped = ein.strip()
+    if not stripped or stripped.lower() in ("null", "none", "n/a", "na"):
+        return None
+    return stripped
 
 
 def _extract_legal_name(body_text: str) -> str:
@@ -122,6 +136,7 @@ def _active_registrations(body_text: str) -> list[str]:
 
 
 def lookup(company_name: str, entity_number: str = None, ein: str = None) -> LookupResult:
+    ein = _clean_ein(ein)
     discovered_ein = None
     if not ein:
         log.info(f"  [illinois] no EIN on file for '{company_name}' — searching the web for one")
